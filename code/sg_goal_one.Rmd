@@ -1,0 +1,137 @@
+---
+title: "Zillow Group"
+author: "Huy Le, Haodi Tu, Sourabh Gupta, Huibo Jia"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float: true
+---
+
+
+Commented header  
+=========================================
+
+```{r echo = TRUE}
+# Course: MGMT 5200
+# Title: Boardroom Analytics
+# Purpose: Zillow Group Project
+# Date: 2019-07-14
+# Author: Huy LE, Haodi Tu, Sourabh Gupta, Huibo Jia
+```
+
+
+Clear environment of variables and packages  
+=========================================
+
+```{r}
+# Clear environment of variables and functions
+rm(list = ls(all = TRUE)) 
+
+# Clear environmet of packages
+if(is.null(sessionInfo()$otherPkgs) == FALSE)lapply(paste("package:", names(sessionInfo()$otherPkgs), sep=""), detach, character.only = TRUE, unload = TRUE)
+```
+
+Load packages that include different functions  
+=========================================
+
+```{r}
+# adding library
+library(tidyverse)
+library(GGally)
+library(gridExtra)
+library("readxl")
+library(janitor)
+library(stringr)
+library(aod)
+library(ggplot2)
+```
+
+Load data and begin new EDA  
+=========================================
+
+```{r}
+#loading data
+annual_demand <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/annual_demand.csv')
+
+demand <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/demand.csv')
+
+fcst_error <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/fcst_error.csv')
+
+future_fcst <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/future_fcst.csv')
+
+item_location_count <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/item_location_count.csv')
+
+lead_time <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/lead_time.csv')
+
+ots <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/ots.csv')
+
+part_information <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/part_information.csv')
+
+protected_inventory <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/protected_inventory.csv')
+
+
+
+```
+
+```{r}
+part_information$stock_class <- as.factor(part_information$stock_class)
+part_information$stock_class_desc <- as.factor(part_information$stock_class_desc)
+part_information$marketing_category <- as.factor(part_information$marketing_category)
+part_information$desk <- as.factor(part_information$desk)
+part_information$velocity <- as.factor(part_information$velocity)
+part_information$vndr_id <- as.factor(part_information$vndr_id)
+part_information$whse_stk_ind <- as.factor(part_information$whse_stk_ind)
+part_information$natl_stk_ind <- as.factor(part_information$natl_stk_ind)
+part_information$trp_ind <- as.factor(part_information$trp_ind)
+part_information$mx_ind <- as.factor(part_information$mx_ind)
+part_information$ngp_ind <- as.factor(part_information$ngp_ind)
+part_information$lfna_ind <- as.factor(part_information$lfna_ind)
+part_information$lfna_4c_ind <- as.factor(part_information$lfna_4c_ind)
+part_information$unit_of_measure <- as.factor(part_information$unit_of_measure)
+
+summary(part_information)
+```
+
+
+```{r}
+length(unique(part_information$marketing_category))
+
+```
+
+```{r}
+part_by_marketing <- part_information %>%
+                 group_by(marketing_category) %>% 
+                 mutate(in_stock = sum(on_hand),
+                        in_order = sum(on_order),
+                        avg_cost = mean(part_cost)) %>%
+                select(marketing_category, in_stock, in_order, avg_cost)
+```
+
+
+
+```{r}
+summary(lead_time)
+```
+
+
+```{r}
+summary(future_fcst)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
