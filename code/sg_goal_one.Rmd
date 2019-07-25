@@ -1,6 +1,6 @@
 ---
-title: "Zillow Group"
-author: "Huy Le, Haodi Tu, Sourabh Gupta, Huibo Jia"
+title: "Paccar Parts Project"
+author: ""
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output:
   html_document:
@@ -16,9 +16,9 @@ Commented header
 ```{r echo = TRUE}
 # Course: MGMT 5200
 # Title: Boardroom Analytics
-# Purpose: Zillow Group Project
-# Date: 2019-07-14
-# Author: Huy LE, Haodi Tu, Sourabh Gupta, Huibo Jia
+# Purpose: Paccar Parts Project
+# Date: 2019-07-24
+# Author: 
 ```
 
 
@@ -53,23 +53,23 @@ Load data and begin new EDA
 
 ```{r}
 #loading data
-annual_demand <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/annual_demand.csv')
+annual_demand <- read_csv('../Data/annual_demand.csv')
 
-demand <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/demand.csv')
+demand <- read_csv('../Data/demand.csv')
 
-fcst_error <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/fcst_error.csv')
+fcst_error <- read_csv('../Data/fcst_error.csv')
 
-future_fcst <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/future_fcst.csv')
+future_fcst <- read_csv('../Data/future_fcst.csv')
 
-item_location_count <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/item_location_count.csv')
+item_location_count <- read_csv('../Data/item_location_count.csv')
 
-lead_time <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/lead_time.csv')
+lead_time <- read_csv('../Data/lead_time.csv')
 
-ots <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/ots.csv')
+ots <- read_csv('../Data/ots.csv')
 
-part_information <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/part_information.csv')
+part_information <- read_csv('../Data/part_information.csv')
 
-protected_inventory <- read_csv('D:/SeattleU Education/4th Quarter, Summer 19/MGMT 5200 Boardroom Analytics/Paccar/Data/protected_inventory.csv')
+protected_inventory <- read_csv('../Data/protected_inventory.csv')
 
 
 
@@ -101,12 +101,12 @@ length(unique(part_information$marketing_category))
 ```
 
 ```{r}
-part_by_marketing <- part_information %>%
-                 group_by(marketing_category) %>% 
-                 mutate(in_stock = sum(on_hand),
-                        in_order = sum(on_order),
-                        avg_cost = mean(part_cost)) %>%
-                select(marketing_category, in_stock, in_order, avg_cost)
+# part_by_marketing <- part_information %>%
+#                  group_by(marketing_category) %>% 
+#                  mutate(in_stock = sum(on_hand),
+#                         in_order = sum(on_order),
+#                         avg_cost = mean(part_cost)) %>%
+#                 select(marketing_category, in_stock, in_order, avg_cost)
 ```
 
 
