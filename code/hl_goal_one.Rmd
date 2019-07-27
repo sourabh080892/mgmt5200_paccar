@@ -36,7 +36,8 @@ Load packages that include different functions
 ```{r }
 # Load libraries
 library(tidyverse)
-
+library(janitor)
+library(kableExtra)
 ```
 
 Load data and begin new EDA  
@@ -48,7 +49,8 @@ Load data and begin new EDA
 partinfo <- read_csv('../data/part_information.csv')
 demand <- read_csv('../data/demand.csv')
 ots <- read_csv('../data/ots.csv')
-fcterr <- ots <- read_csv('../data/fcst_error.csv')
+fcterr <- read_csv('../data/fcst_error.csv')
+fcst <- read_csv('../data/future_fcst.csv')
 # Examine data structure 
 str(partinfo)
 sapply(partinfo, function(x) sum(is.na(x)))
@@ -69,6 +71,7 @@ dfrfill <- demand %>%
                                nfill = (1 - sum(rhit)/sum(rline)),
                                rhitcost = sum(rhit)*15)
 
+# current state by marketing category: total partcost, turnover( demand/stocks), holding cost
 curInv <- demand %>% filter(format(order_month,'%Y-%m-%d') == '2019-07-01', whse_vndr_id != 'N' ) %>%
                       inner_join(partinfo, by='dim') %>%
                       mutate(holdingcost = (length* width* height /1728)*5.5/12) %>%
@@ -87,14 +90,44 @@ curInv <- demand %>% filter(format(order_month,'%Y-%m-%d') == '2019-07-01', whse
                                 turnover = sum(demand_qty)/sum(on_hand),
                                 sumholdcost = sum(holdingcost* on_hand))
 
+# ontime shipping time
 otsrate <- ots %>% mutate(Year = format(as.Date(ots_month, format='%m/%d/%Y'),'%Y')) %>%
                     group_by(Year) %>%
                     summarise(otsrte = sum(early+on_time +ifelse(is.na(pd_shipped),0,pd_shipped))/sum(past_due+total_all))
 
+# percentage of days_on_hand/lead time by vendor
+partinfo %>% select(vndr_id, marketing_category, lead_time, days_on_hand, fcst_daily) %>%
+            filter(fcst_daily >=1)%>%
+            group_by(vndr_id) %>%
+            summarise(tt_lead_time = mean(lead_time),
+                      tt_daysonhand = mean(days_on_hand),
+                      onhandleadrate = sum(days_on_hand)/sum(lead_time)) %>%
+            mutate(turnoverstate = ifelse(tt_daysonhand <= tt_lead_time,'under','over')) %>% 
+            #group_by(turnoverstate) %>%
+            #summarise(count = n()) %>%
+            tabyl(turnoverstate) %>%
+            adorn_totals()%>%
+            adorn_pct_formatting(digits = 0 )
+
+# contribution of under 
+overstockvendor <- partinfo %>% select(vndr_id,dim, velocity, marketing_category, lead_time, days_on_hand, fcst_daily) %>%
+            filter(fcst_daily >=1)%>%
+            group_by(dim) %>% 
+            summarise(tt_lead_time = mean(lead_time),
+                      tt_daysonhand = mean(days_on_hand),
+                      onhandleadrate = mean(days_on_hand/lead_time)) %>%
+            arrange(desc(onhandleadrate))
+
+# percentage greater than 200% overstocked vendor
+overstockvendor %>% mutate(ovrstck2per = ifelse(onhandleadrate >=2, 'TRUE','FALSE')) %>%
+                    tabyl(ovrstck2per) %>%
+                    adorn_totals()%>%
+                    adorn_pct_formatting(digits = 0 )
 
 
 ```
-
+ANalysing forecast error and future forecast
+=============================================
 ```{r}
 fcterr %>% group_by(dim) %>%
             summarise(avgerr = mean(error_total)) %>%
@@ -102,5 +135,77 @@ fcterr %>% group_by(dim) %>%
             geom_histogram(bins=100) +
             xlim(0,500)
 
+# ANalysing forecast error and future forecast
+plot(fcterr$error_total)
+```
+
+Forecasting deman
+====================================================
+```{r}
+#preparing data
+demand
+partinfo
+
+fdataset <- demand %>% inner_join(partinfo, by ='dim') %>%
+                        select(order_month, dim, whse_vndr_id, demand_qty, division,
+                               marketing_category,velocity,lead_time,safety_stock_qty, part_cost,
+                               trp_ind, mx_ind, ngp_ind, lfna_ind, lfna_4c_ind, natl_stk_ind, whse_stk_ind) %>%
+                        mutate(division=as.factor(division), 
+                                marketing_category=as.factor(marketing_category),
+                                velocity=as.factor(velocity),
+                                trp_ind=as.factor(trp_ind), 
+                                mx_ind=as.factor(mx_ind),
+                                ngp_ind=as.factor(ngp_ind), 
+                                lfna_ind=as.factor(lfna_ind), 
+                                lfna_4c_ind=as.factor(lfna_4c_ind), 
+                                natl_stk_ind=as.factor(natl_stk_ind), 
+                                whse_stk_ind=as.factor(whse_stk_ind),
+                                part_cost = ifelse(is.na(part_cost),0,part_cost)) %>%
+                        filter(whse_stk_ind != 'N')
+
+#--------------------------------------------------------------------
+summary(fdataset)
+sapply(fdataset, function(x) sum(is.na(x)))
+index <- sample(1:nrow(fdataset),10000, replace=FALSE)
+sdataset <-fdataset[index,]
+trainset <- fdataset %>% filter(order_month  <'2019-01-01')
+testset <- fdataset %>% filter(order_month  >='2019-01-01')
+
+fit <- lm(data = trainset, demand_qty ~ . -order_month - dim -marketing_category-whse_vndr_id -natl_stk_ind)
+
+summary(fit)
+```
+
+```{r}
+library(neuralnet)
+library(MASS)
+library(caret)
+colnames(fdataset)
+#c("velocity","lead_time","safety_stock_qty","part_cost","trp_ind","mx_ind","ngp_ind","lfna_ind","lfna_4c_ind","whse_stk_ind" )
+#fdataset[,c("mx_ind","ngp_ind","lfna_ind","lfna_4c_ind","demand_qty","lead_time","safety_stock_qty","part_cost")]
+fdataset$velocity <- ifelse(fdataset$velocity %in% c(1,2,3,9),fdataset$velocity,10)
+fdataset$whse_stk_ind <-  ifelse(fdataset$whse_stk_ind == 'N',0,1)
+maxval <-apply(fdataset[,c("lead_time","safety_stock_qty","part_cost","trp_ind","mx_ind","ngp_ind","lfna_ind","lfna_4c_ind","whse_stk_ind" )],2,max)
+minval <-apply(fdataset[,c("lead_time","safety_stock_qty","part_cost","trp_ind","mx_ind","ngp_ind","lfna_ind","lfna_4c_ind","whse_stk_ind" )],2,min)
+fdatasetN <- fdataset
+fdatasetN$trp_ind <- as.numeric(fdatasetN$trp_ind)
+fdatasetN$mx_ind <- as.numeric(fdatasetN$mx_ind ) 
+fdatasetN$ngp_ind <- as.numeric(fdatasetN$ngp_ind ) 
+fdatasetN$lfna_ind <- as.numeric(fdatasetN$lfna_ind ) 
+fdatasetN$lfna_4c_ind <- as.numeric(fdatasetN$lfna_4c_ind ) 
+fdatasetN$whse_stk_ind <- as.numeric(fdatasetN$whse_stk_ind ) 
+str(fdatasetN)
+fdatasetN[,c("lead_time","safety_stock_qty","part_cost","trp_ind","mx_ind","ngp_ind","lfna_ind","lfna_4c_ind","whse_stk_ind" )] <- as.data.frame(scale(fdatasetN[,c("lead_time","safety_stock_qty","part_cost","trp_ind","mx_ind","ngp_ind","lfna_ind","lfna_4c_ind","whse_stk_ind" )], center = minval, scale = (as.numeric(maxval)-as.numeric(minval))))
+
+trainsetN <- fdatasetN %>% filter(order_month  <'2018-01-01')
+testsetN<- fdatasetN %>% filter(order_month  >='2019-01-01')
+
+index <- sample(1:nrow(trainsetN), size =5000)
+strainsetN <- trainsetN[index,]
+strainsetN
+#A model with 4 nodes on the hidden 
+layernm1 <- neuralnet(demand_qty~lead_time+safety_stock_qty+part_cost+trp_ind, hidden = c(2), data=strainsetN,stepmax=1e6)
+
+plot(layernm1)
 ```
 
