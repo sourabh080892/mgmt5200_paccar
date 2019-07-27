@@ -112,7 +112,7 @@ partinfo %>% select(vndr_id, marketing_category, lead_time, days_on_hand, fcst_d
 # contribution of under 
 overstockvendor <- partinfo %>% select(vndr_id,dim, velocity, marketing_category, lead_time, days_on_hand, fcst_daily) %>%
             filter(fcst_daily >=1)%>%
-            group_by(velocity) %>% 
+            group_by(dim) %>% 
             summarise(tt_lead_time = mean(lead_time),
                       tt_daysonhand = mean(days_on_hand),
                       onhandleadrate = mean(days_on_hand/lead_time)) %>%
