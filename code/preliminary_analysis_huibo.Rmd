@@ -75,14 +75,6 @@ summary(ots)
 ```
 + total_all is not the sum of early, on_time, pd_shipped, past_due, >=<
 + should only focus channel PDC （28306）
-+ OTS is often seen as a percentage:
-(early + on_time + pd_shipped) / (past_due + total_all) 
-
-
-```{r}
-ots_pdc <- ots %>% filter(channel == 'PDC')
-```
-
 
 ```{r}
 summary(part_info)
@@ -105,29 +97,36 @@ summary(protected_inventory)
 + service level: ots, rhit
 
 
+State of LAN
+=========================================
+
+```{r}
+# rfill rate, nfill rate, rhit cost
+fill_rate <- demand %>%
+  mutate(year = format(as.Date(order_month), "%Y")) %>%
+  group_by(year,division) %>%
+  summarise(rfill_rate = 1 - sum(rhit) / sum(rline),
+        nfill_rate = 1 - sum(nhit) / sum(nline),
+        rhit_cost = sum(rhit) * 15)
+  
+```
+
+```{r}
+# OTS is often seen as a percentage:
+# (early + on_time + pd_shipped) / (past_due + total_all) 
+ots[is.na(ots)] <- 0
+ots$pd_shipped[ots$pd_shipped==""] <- 0
+ots_pdc <- ots %>% 
+  filter(channel == 'PDC') %>%
+  mutate(year = format(as.Date(ots_month,"%m/%d/%Y"), "%Y")) %>%
+  group_by(year) %>%
+  summarise(ots = sum(early + on_time + pd_shipped) / sum(past_due + total_all))
+  
+```
+
 ```{r}
 demand_all <- demand %>% left_join(part_info, by = c('dim')) 
 ```
-
-```{r}
-# rfill_rate = 1 - sum(rhit) / sum(rline)
-metrics_summary <- demand_all %>%
-  mutate(year = format(as.Date(order_month), "%Y"))
-  group_by(year, marketing_channel) %>%
-  summarise(rfill_rate = 1 - sum(rhit) / sum(rline),
-        nfill_rate = 1 - sum(nhit) / sum(nline),
-        inventory_cost = (sum(length * width * height / 1728) )* 5.5)
-```
-
-+ (early + on_time + pd_shipped) / (past_due + total_all) 
-
-
-```{r}
-metrics_summary <- metrics_summary %>%
-  filter(inventory_cost != 'NULL',
-         rfill_rate > 0)
-```
-
 
 
 ```{r}
@@ -152,5 +151,11 @@ fcst_error_records <- fcst_error %>%
   select(dim) %>%
   distinct()
 ```
+
+```{r}
+# A, B, C category
+
+```
+
 
 
