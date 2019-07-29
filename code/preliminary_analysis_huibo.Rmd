@@ -1,0 +1,156 @@
+---
+title: "Inventory Optimization"
+author: "Huibo Jia"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    number_sections: yes
+    theme: cosmoß
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+
+---
+
+
+
+Clear environment of variables and packages  
+=========================================
+
+```{r}
+# Clear environment of variables and functions
+rm(list = ls(all = TRUE)) 
+# Clear environmet of packages
+if(is.null(sessionInfo()$otherPkgs) == FALSE)lapply(paste("package:", names(sessionInfo()$otherPkgs), sep=""), detach, character.only = TRUE, unload = TRUE)
+```
+
+Load pacakages and data 
+=========================================
+
+```{r}
+# Load packages
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+```
+
+
+```{r}
+demand <- read.csv("Data/demand.csv")
+#annual_demand <- read.csv("Data/annual_demand.csv")
+fcst_error <- read.csv("Data/fcst_error.csv")
+future_fcst <- read.csv("Data/future_fcst.csv")
+lead_time <- read.csv("Data/lead_time.csv")
+#item_location_count <- read.csv("Data/item_location_count.csv")
+ots <- read.csv("Data/ots.csv")
+part_info <- read.csv("Data/part_information.csv")
+protected_inventory <- read.csv("Data/protected_inventory.csv")
+
+```
+
+```{r}
+summary(demand)
+```
+
++ Most reginal orders are filled
++ 2017 to 2019-7
+
+
+```{r}
+summary(fcst_error)
+```
+
++ 2017-9 to 2019-6
++ total forecast quantity negative value? (fcst_total)
+
+```{r}
+summary(lead_time)
+```
+
++ avg_lead_time negative value?
++ shipdate supplier to paccar right?
+
+```{r}
+summary(ots)
+```
++ total_all is not the sum of early, on_time, pd_shipped, past_due, >=<
++ should only focus channel PDC （28306）
++ OTS is often seen as a percentage:
+(early + on_time + pd_shipped) / (past_due + total_all) 
+
+
+```{r}
+ots_pdc <- ots %>% filter(channel == 'PDC')
+```
+
+
+```{r}
+summary(part_info)
+```
++ may consider group by marketing_category
++ there's products does not belong to marketing_category
+
+
+```{r}
+summary(protected_inventory)
+```
++ protected means that the part number can not be scrapped. It has to stay in the warehouse.
++ protected_ind	an indicator to identify if the part number is protected in the system	"1 = True
+0 = False"; all item in the data protected_ind= 1
+
++ Dimensions: time, market_category or velocity
++ metrics:r_fill,n_fill,ots, total cost of inventry, turnover of inventory: demand/no.inventory
++ forecast= forecast_daily *lead_time
++ Also show the highlighted part in the current state
++ service level: ots, rhit
+
+
+```{r}
+demand_all <- demand %>% left_join(part_info, by = c('dim')) 
+```
+
+```{r}
+# rfill_rate = 1 - sum(rhit) / sum(rline)
+metrics_summary <- demand_all %>%
+  mutate(year = format(as.Date(order_month), "%Y"))
+  group_by(year, marketing_channel) %>%
+  summarise(rfill_rate = 1 - sum(rhit) / sum(rline),
+        nfill_rate = 1 - sum(nhit) / sum(nline),
+        inventory_cost = (sum(length * width * height / 1728) )* 5.5)
+```
+
++ (early + on_time + pd_shipped) / (past_due + total_all) 
+
+
+```{r}
+metrics_summary <- metrics_summary %>%
+  filter(inventory_cost != 'NULL',
+         rfill_rate > 0)
+```
+
+
+
+```{r}
+# 
+# demand_dim <- demand %>%
+#   select(dim) %>%
+#   distinct()
+# part_info_demand <- demand_dim %>% left_join(part_info, by = c('dim')) 
+part_info_1 <- demand_all %>%
+  filter(days_on_hand >0 ) %>%
+  group_by(dim, velocity, marketing_category) %>%
+  summarise (rate = mean(days_on_hand)/mean(lead_time))
+
+part_info_2 <- demand_all %>%
+  filter(days_on_hand >0 ) %>%
+  group_by(marketing_category) %>%
+  summarise (rate = mean(days_on_hand)/mean(lead_time))
+```
+
+```{r}
+fcst_error_records <- fcst_error %>%
+  select(dim) %>%
+  distinct()
+```
+
+
