@@ -39,7 +39,7 @@ demand <- read_csv('demand.csv')
 # annual_demand <- read_csv('annual_demand.csv')
 # fcst_error <- read_csv('fcst_error.csv')
 # future_fcst <- read_csv('future_fcst.csv')
-lead_time <- read_csv('lead_time.csv')
+# lead_time <- read_csv('lead_time.csv')
 # item_location_count <- read_csv('item_location_count.csv')
 ots <- read_csv("ots.csv")
 part_info <- read_csv("part_information.csv")
@@ -51,9 +51,6 @@ protected_inventory <- read_csv("protected_inventory.csv")
 
 ```{r}
 # Demand data & annual demand data
-
-# demand$item_id <- substr(dim, 1, length(dim) - 3)
-# demand <- demand %>% mutate_if(is.charater, as.factor)
 # change column name to vndr_id
 colnames(demand)[colnames(demand)=="whse_vndr_id"] <- "vndr_id"
 # cost of each rhit
@@ -97,6 +94,8 @@ indicators <- c("mx_ind","ngp_ind","lfna_ind","lfna_4c_ind")
 new[indicators] <- lapply(new[indicators], factor)
 new$part_cost[is.na(new$part_cost)] <- 0
 
+summary(new)
+
 ```
 
 ```{r}
@@ -108,7 +107,18 @@ overstocked <- new %>%
 
 overstocked_ind <- overstocked[which(overstocked$mx_ind == 1 |overstocked$ngp_ind == 1 |overstocked$lfna_ind == 1 |overstocked$lfna_4c_ind == 1),]
 
-table_a <- overstocked %>% group_by(item_id, velocity) %>% 
+table_a_vel <- overstocked %>% group_by(item_id, velocity, year) %>% 
+  summarise(total_rhit = sum(rhit),
+            total_rline = sum(rline),
+            total_rhit_qtf = sum(rhit_qty),
+            avg_rfill = 1-sum(rhit)/sum(rline),
+            total_rcost = sum(cost_rhit),
+            total_inventory_holding_cost = sum(cost_inventory),
+            total_part_cost = sum(part_cost),
+            avg_lead_time = mean(lead_time),
+            avg_order_point = mean(order_point),
+            avg_stocking_ratio = mean(stocking_ratio))
+table_a_mar <- overstocked %>% group_by(item_id, marketing_category, year) %>% 
   summarise(total_rhit = sum(rhit),
             total_rline = sum(rline),
             total_rhit_qtf = sum(rhit_qty),
@@ -120,7 +130,8 @@ table_a <- overstocked %>% group_by(item_id, velocity) %>%
             avg_order_point = mean(order_point),
             avg_stocking_ratio = mean(stocking_ratio))
 
-table_a_ind <- overstocked_ind %>% group_by(item_id, velocity) %>% 
+
+table_a_ind_vel <- overstocked_ind %>% group_by(item_id, velocity, year) %>% 
   summarise(total_rhit = sum(rhit),
             total_rline = sum(rline),
             total_rhit_qtf = sum(rhit_qty),
@@ -132,8 +143,22 @@ table_a_ind <- overstocked_ind %>% group_by(item_id, velocity) %>%
             avg_order_point = mean(order_point),
             avg_stocking_ratio = mean(stocking_ratio))
 
-table_a_ind
-table_a
+table_a_ind_mar <- overstocked_ind %>% group_by(item_id, marketing_category, year) %>% 
+  summarise(total_rhit = sum(rhit),
+            total_rline = sum(rline),
+            total_rhit_qtf = sum(rhit_qty),
+            avg_rfill = 1-sum(rhit)/sum(rline),
+            total_rcost = sum(cost_rhit),
+            total_inventory_holding_cost = sum(cost_inventory),
+            total_part_cost = sum(part_cost),
+            avg_lead_time = mean(lead_time),
+            avg_order_point = mean(order_point),
+            avg_stocking_ratio = mean(stocking_ratio))
+
+overstocked
+table_a_vel
+# table_a
+# sum(table_a$total_part_cost)
 ```
 
 
@@ -145,7 +170,7 @@ avg_stocking <- new %>%
   filter(stock_class!= "N", stocking_ratio>1 & stocking_ratio< 2, factor == 0)%>% select(-factor) 
 
 
-table_b <- avg_stocking %>% group_by(velocity) %>% 
+table_b_velocity <- avg_stocking %>% group_by(velocity, year) %>% 
   summarise(total_rhit = sum(rhit),
             total_rline = sum(rline),
             total_rhit_qtf = sum(rhit_qty),
@@ -156,7 +181,21 @@ table_b <- avg_stocking %>% group_by(velocity) %>%
             avg_lead_time = mean(lead_time),
             avg_order_point = mean(order_point),
             avg_stocking_ratio = mean(stocking_ratio)) 
-table_b
+
+table_b_marketing <- avg_stocking %>% group_by(marketing_category, year) %>% 
+  summarise(total_rhit = sum(rhit),
+            total_rline = sum(rline),
+            total_rhit_qtf = sum(rhit_qty),
+            avg_rfill = 1-sum(rhit)/sum(rline),
+            total_rcost = sum(cost_rhit),
+            total_inventory_holding_cost = sum(cost_inventory),
+            total_part_cost = sum(part_cost),
+            avg_lead_time = mean(lead_time),
+            avg_order_point = mean(order_point),
+            avg_stocking_ratio = mean(stocking_ratio)) 
+
+table_b_velocity
+
 ```
 
 
@@ -164,35 +203,47 @@ table_b
 
 ```{r}
 # reducing avg stocking ratio by item id by
-sub_table_a <- table_a %>% select(c(item_id, velocity, avg_stocking_ratio))
-sub_table_a_ind <- table_a_ind %>% select(c(item_id, velocity, avg_stocking_ratio))
-sub_table_b <- table_b %>% select(c(velocity, avg_stocking_ratio))
+sub_table_a_vel <- table_a_vel %>% select(c(item_id, velocity, avg_stocking_ratio, year))
+sub_table_a_mar <- table_a_mar %>% select(c(item_id, marketing_category, avg_stocking_ratio, year))
+sub_table_a_ind_vel <- table_a_ind_vel %>% select(c(item_id, velocity, avg_stocking_ratio, year))
+sub_table_a_ind_mar <- table_a_ind_mar %>% select(c(item_id, marketing_category, avg_stocking_ratio, year))
+sub_table_b_velocity <- table_b_velocity %>% select(c(velocity, avg_stocking_ratio, year))
+sub_table_b_marketing <- table_b_marketing %>% select(c(marketing_category, avg_stocking_ratio, year))
 
 # difference is average desired reducing stocking ratio 
-comparson <- left_join(sub_table_a,sub_table_b, by = "velocity") %>% mutate(difference = avg_stocking_ratio.x - avg_stocking_ratio.y)
-comparson_ind <- left_join(sub_table_a_ind,sub_table_b, by = "velocity") %>% mutate(difference = avg_stocking_ratio.x - avg_stocking_ratio.y)
+comparson_vel <- left_join(sub_table_a_vel,sub_table_b_velocity, by = c('year',"velocity")) %>% mutate(difference = avg_stocking_ratio.x - avg_stocking_ratio.y)
+comparson_mar <- left_join(sub_table_a_mar,sub_table_b_marketing, by = c('year',"marketing_category")) %>% mutate(difference = avg_stocking_ratio.x - avg_stocking_ratio.y)
+comparson_ind_vel <- left_join(sub_table_a_ind_vel,sub_table_b_velocity, by = c('year',"velocity")) %>% mutate(difference = avg_stocking_ratio.x - avg_stocking_ratio.y)
+comparson_ind_mar <- left_join(sub_table_a_ind_mar,sub_table_b_marketing, by = c('year',"marketing_category")) %>% mutate(difference = avg_stocking_ratio.x - avg_stocking_ratio.y)
 # On hand qty = stocking ratio* lead time * daily fcst 
 
-df <- left_join(comparson, new, by = c("item_id", 'velocity'))
-df_ind <- left_join(comparson_ind, new, by = c("item_id", 'velocity'))
+df_vel <- left_join(comparson_vel, new, by = c("item_id", 'velocity', 'year'))
+df_mar <- left_join(comparson_mar, new, by = c("item_id", 'marketing_category', 'year'))
+df_ind_vel <- left_join(comparson_ind_vel, new, by = c("item_id", 'velocity', 'year'))
+df_ind_mar <- left_join(comparson_ind_mar, new, by = c("item_id", 'marketing_category', 'year'))
 
-final <- df %>% group_by(item_id,velocity) %>% 
+final_vel <- df_vel %>% group_by(item_id,velocity,year) %>% 
   summarise(reduce_on_hand = round(mean(difference)*mean(lead_time)*mean(fcst_daily), 0),
             saving_part_cost = sum(part_cost)*reduce_on_hand,
-            saving_part_cost_perc = round(sum(saving_part_cost)/ sum(new$part_cost)*100,5),
-            saving_holding_costing = sum(cost_inventory)*reduce_on_hand,
-            saving_holding_costing_perc = round(sum(saving_holding_costing)/sum(new$cost_inventory)*100,5))
+            saving_holding_costing = sum(cost_inventory)*reduce_on_hand)
 
-final_ind <- df_ind %>% group_by(item_id,velocity) %>% 
+final_mar <- df_mar %>% group_by(item_id,marketing_category, year) %>% 
   summarise(reduce_on_hand = round(mean(difference)*mean(lead_time)*mean(fcst_daily), 0),
             saving_part_cost = sum(part_cost)*reduce_on_hand,
-            saving_part_cost_perc = round(sum(saving_part_cost)/ sum(new$part_cost)*100,5),
-            saving_holding_costing = sum(cost_inventory)*reduce_on_hand,
-            saving_holding_costing_perc = round(sum(saving_holding_costing)/sum(new$cost_inventory)*100,5))
+            saving_holding_costing = sum(cost_inventory)*reduce_on_hand)
 
-final
+final_ind_vel <- df_ind_vel %>% group_by(item_id,velocity, year) %>% 
+  summarise(reduce_on_hand = round(mean(difference)*mean(lead_time)*mean(fcst_daily), 0),
+            saving_part_cost = sum(part_cost)*reduce_on_hand,
+            saving_holding_costing = sum(cost_inventory)*reduce_on_hand)
 
-final_ind
+final_ind_mar <- df_ind_mar %>% group_by(item_id,marketing_category, year) %>% 
+  summarise(reduce_on_hand = round(mean(difference)*mean(lead_time)*mean(fcst_daily), 0),
+            saving_part_cost = sum(part_cost)*reduce_on_hand,
+            saving_holding_costing = sum(cost_inventory)*reduce_on_hand)
+ 
+
+
 
 ```
 
@@ -202,7 +253,8 @@ final_ind
 
 
 ```{r}
-
-write.csv(final, 'final.csv',row.names=FALSE)
-write.csv(final_ind, 'final_ind.csv', row.names=FALSE)
+write.csv(final_vel, 'final_vel.csv',row.names=FALSE)
+write.csv(final_mar, 'final_mar.csv',row.names=FALSE)
+write.csv(final_ind_vel, 'final_ind_vel.csv', row.names=FALSE)
+write.csv(final_ind_mar, 'final_ind_mar.csv', row.names=FALSE)
 ```
