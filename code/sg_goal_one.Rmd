@@ -112,18 +112,36 @@ demand_fill <- demand %>%
                                rhit_cost = sum(rhit)*15)
 
 part_by_fill <- left_join(part_information, demand_fill, by = c("dim"="dim")) %>%
-                  select(year, dim, marketing_category, velocity, on_hand, on_order, lead_time, vndr_id, safety_stock_days, safety_stock_qty, days_on_hand, part_cost, trp_ind, mx_ind, ngp_ind, lfna_ind, lfna_4c_ind, length, width, height, rfill, nfill, rhit_cost)
+                  select(year, dim, marketing_category, velocity, on_hand, on_order, lead_time, vndr_id, fcst_3m, fcst_daily, safety_stock_days, safety_stock_qty, days_on_hand, part_cost, trp_ind, mx_ind, ngp_ind, lfna_ind, lfna_4c_ind, length, width, height, rfill, nfill, rhit_cost)
 
 part_by_demand_fill <- left_join(part_by_fill, annual_demand, by = c("dim"="dim")) %>%
-                  select(year, dim, marketing_category, velocity, on_hand, on_order, lead_time, vndr_id, safety_stock_days, safety_stock_qty, days_on_hand, part_cost, trp_ind, mx_ind, ngp_ind, lfna_ind, lfna_4c_ind, length, width, height, rfill, nfill, rhit_cost, "2014", "2015", "2016", "2017", "2018", "2019")
+                  select(year, dim, marketing_category, velocity, on_hand, on_order, lead_time, vndr_id, fcst_3m, fcst_daily, safety_stock_days, safety_stock_qty, days_on_hand, part_cost, trp_ind, mx_ind, ngp_ind, lfna_ind, lfna_4c_ind, length, width, height, rfill, nfill, rhit_cost, "2014", "2015", "2016", "2017", "2018", "2019")
+
+# filter vendors with PDC
+ots = ots[ots$channel == 'PDC',]
+
+ots$ots_month<- as.Date(ots$ots_month, format = "%m/%d/%Y")
+
+# ots group by year and vendor
+ots_by_year <- ots %>%
+  mutate(year = format(ots_month,'%Y')) %>%                  
+  select(year, vndr_id, early, on_time, pd_shipped, past_due, total_all) %>%
+                    group_by(year, vndr_id) %>%
+                    summarise( early      = sum(early),
+                               on_time    = sum(on_time),
+                               pd_shipped = sum(pd_shipped),
+                               past_due   = sum(past_due),
+                               total_all  = sum(total_all))
+
+part_by_demand_fill <- left_join(part_by_demand_fill, ots_by_year, by = c("year"="year", "vndr_id" = "vndr_id")) %>%
+                  select(year, dim, marketing_category, velocity, on_hand, on_order, lead_time, vndr_id, fcst_3m, fcst_daily, safety_stock_days, safety_stock_qty, days_on_hand, part_cost, trp_ind, mx_ind, ngp_ind, lfna_ind, lfna_4c_ind, length, width, height, rfill, nfill, rhit_cost, "2014", "2015", "2016", "2017", "2018", "2019", early, on_time, pd_shipped, past_due, total_all)
 
 # part_by_marketing <- part_information %>%
-#                  group_by(marketing_category) %>%
-#                  mutate(in_stock = sum(on_hand),
-#                         in_order = sum(on_order),
-#                         avg_cost = mean(part_cost)) %>%
-#                 select(marketing_category, in_stock, in_order, avg_cost)
-
+#                 group_by(marketing_category) %>%
+#                 mutate(in_stock = sum(on_hand),
+#                        in_order = sum(on_order),
+#                        avg_cost = mean(part_cost)) %>%
+#                select(marketing_category, in_stock, in_order, avg_cost)
 part_by_demand_fill$rfill[is.na(part_by_demand_fill$rfill)] <- 0
 part_by_demand_fill$nfill[is.na(part_by_demand_fill$nfill)] <- 0
 part_by_demand_fill$part_cost[is.na(part_by_demand_fill$part_cost)] <- 0
@@ -134,8 +152,6 @@ part_by_demand_fill$"2016"[is.na(part_by_demand_fill$"2016")] <- 0
 part_by_demand_fill$"2017"[is.na(part_by_demand_fill$"2017")] <- 0
 part_by_demand_fill$"2018"[is.na(part_by_demand_fill$"2018")] <- 0
 part_by_demand_fill$"2019"[is.na(part_by_demand_fill$"2019")] <- 0
-
-
 write.csv(part_by_demand_fill, file = "part_by_demand_fill.csv")
 
 ```
